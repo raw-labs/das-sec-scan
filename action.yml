@@ -92,7 +92,11 @@ runs:
       shell: bash
       run: |
         VULN_COUNT=$(jq -r '[.Results[] | select(.Vulnerabilities) | .Vulnerabilities | length] | add // 0' ${{ inputs.report-dir }}/vulnerabilities.json)
-        echo "found-vulnerabilities=$([ "$VULN_COUNT" -gt 0 ])" >> $GITHUB_OUTPUT
+        if [ "$VULN_COUNT" -gt 0 ]; then
+          echo "found-vulnerabilities=true" >> $GITHUB_OUTPUT
+        else
+          echo "found-vulnerabilities=false" >> $GITHUB_OUTPUT
+        fi
         echo "vulnerability-count=$VULN_COUNT" >> $GITHUB_OUTPUT
 
     - name: Check for existing security report
@@ -219,8 +223,9 @@ runs:
           echo "issue-number=${{ steps.check_report.outputs.issue-number }}" >> $GITHUB_OUTPUT
         else
           ISSUE_NUMBER=$(gh issue create \
-            --title "$TITLE" \Error: Unable to resolve action `aquasecurity/trivy-action@v0.30.0`, unable to find version `v0.30.0`
-
+            --title "$TITLE" \
+            --body "$BODY" \
+            --label "$LABELS" \
             --jq .number)
           echo "issue-number=$ISSUE_NUMBER" >> $GITHUB_OUTPUT
         fi
