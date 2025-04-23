@@ -26,14 +26,14 @@ jobs:
     steps:
       - uses: raw-labs/das-sec-scan@main
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}  # Optional, defaults to GITHUB_TOKEN
+          github-token: ${{ github.token }}  # Required: used for API access
 ```
 
 ## Inputs
 
 | Input | Description | Required | Default |
 |-------|-------------|----------|---------|
-| `github-token` | GitHub token for API access | No | `${{ github.token }}` |
+| `github-token` | GitHub token for API access | Yes | - |
 | `report-dir` | Directory to store reports | No | `security-reports` |
 | `severity` | Severity levels to scan for (comma-separated) | No | `CRITICAL,HIGH` |
 
@@ -78,4 +78,4 @@ The action automatically creates and manages the following labels:
 
 ## License
 
-MIT License - see LICENSE file for details
+Apache-2.0 license - see LICENSE file for details

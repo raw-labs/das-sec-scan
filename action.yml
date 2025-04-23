@@ -6,9 +6,8 @@ branding:
 
 inputs:
   github-token:
-    description: 'GitHub token for API access (defaults to GITHUB_TOKEN)'
-    required: false
-    default: ${{ github.token }}
+    description: 'GitHub token for API access'
+    required: true
   report-dir:
     description: 'Directory to store reports'
     required: false
@@ -31,7 +30,7 @@ outputs:
 runs:
   using: 'composite'
   env:
-    GH_TOKEN: ${{ inputs.github-token || github.token }}
+    GH_TOKEN: ${{ inputs.github-token }}
   steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -85,7 +84,7 @@ runs:
         ignore-unfixed: true
         vuln-type: 'os,library'
         severity: ${{ inputs.severity }}
-        github-pat: ${{ inputs.github-token || github.token }}
+        github-pat: ${{ inputs.github-token }}
 
     - name: Check for vulnerabilities
       id: check_vulns
