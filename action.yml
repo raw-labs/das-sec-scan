@@ -103,6 +103,8 @@ runs:
       if: steps.check_vulns.outputs.found-vulnerabilities == 'true'
       id: check_report
       shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
       run: |
         EXISTING_ISSUE=$(gh issue list \
           --label "version:${{ env.IMAGE_TAG }}" \
@@ -138,6 +140,8 @@ runs:
     - name: Ensure labels exist
       if: steps.check_vulns.outputs.found-vulnerabilities == 'true'
       shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
       run: |
         # Function to create label if it doesn't exist
         create_label() {
@@ -174,6 +178,8 @@ runs:
     - name: Create or Update Security Report Issue
       if: steps.check_vulns.outputs.found-vulnerabilities == 'true'
       shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
       run: |
         CURRENT_DATE=$(date '+%Y-%m-%d')
         TITLE="Security Scan Report for version ${{ env.IMAGE_TAG }} ($CURRENT_DATE)"
