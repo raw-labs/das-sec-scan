@@ -30,6 +30,8 @@ outputs:
 
 runs:
   using: 'composite'
+  env:
+    GH_TOKEN: ${{ inputs.github-token || github.token }}
   steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -217,8 +219,9 @@ runs:
           echo "issue-number=${{ steps.check_report.outputs.issue-number }}" >> $GITHUB_OUTPUT
         else
           ISSUE_NUMBER=$(gh issue create \
-            --title "$TITLE" \Error: Unable to resolve action `aquasecurity/trivy-action@v0.30.0`, unable to find version `v0.30.0`
-
+            --title "$TITLE" \
+            --body "$BODY" \
+            --label "$LABELS" \
             --jq .number)
           echo "issue-number=$ISSUE_NUMBER" >> $GITHUB_OUTPUT
         fi
