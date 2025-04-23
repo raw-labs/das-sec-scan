@@ -6,8 +6,9 @@ branding:
 
 inputs:
   github-token:
-    description: 'GitHub token for API access'
-    required: true
+    description: 'GitHub token for API access (defaults to GITHUB_TOKEN)'
+    required: false
+    default: ${{ github.token }}
   report-dir:
     description: 'Directory to store reports'
     required: false
@@ -29,8 +30,6 @@ outputs:
 
 runs:
   using: 'composite'
-  env:
-    GH_TOKEN: ${{ inputs.github-token }}
   steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -39,6 +38,8 @@ runs:
 
     - name: Get latest release and image tag
       shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
       run: |
         LATEST_RELEASE_TAG=$(gh api repos/${{ github.repository }}/releases/latest --jq .tag_name)
         IMAGE_TAG=$(echo "$LATEST_RELEASE_TAG" | sed 's/^v//')
@@ -84,7 +85,7 @@ runs:
         ignore-unfixed: true
         vuln-type: 'os,library'
         severity: ${{ inputs.severity }}
-        github-pat: ${{ inputs.github-token }}
+        github-pat: ${{ inputs.github-token || github.token }}
 
     - name: Check for vulnerabilities
       id: check_vulns
@@ -218,9 +219,8 @@ runs:
           echo "issue-number=${{ steps.check_report.outputs.issue-number }}" >> $GITHUB_OUTPUT
         else
           ISSUE_NUMBER=$(gh issue create \
-            --title "$TITLE" \
-            --body "$BODY" \
-            --label "$LABELS" \
+            --title "$TITLE" \Error: Unable to resolve action `aquasecurity/trivy-action@v0.30.0`, unable to find version `v0.30.0`
+
             --jq .number)
           echo "issue-number=$ISSUE_NUMBER" >> $GITHUB_OUTPUT
         fi
