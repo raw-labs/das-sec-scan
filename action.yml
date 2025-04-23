@@ -59,8 +59,8 @@ runs:
     - name: Setup Java
       uses: actions/setup-java@v4
       with:
-        distribution: ${{ inputs.java-distribution }}
-        java-version: ${{ inputs.java-version }}
+        distribution: temurin
+        java-version: 21
         cache: 'sbt'
 
     - name: Setup sbt
@@ -85,7 +85,7 @@ runs:
         ignore-unfixed: true
         vuln-type: 'os,library'
         severity: ${{ inputs.severity }}
-        github-pat: ${{ inputs.github-token || github.token }}
+        github-pat: ${{ inputs.github-token }}
 
     - name: Check for vulnerabilities
       id: check_vulns
