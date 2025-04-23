@@ -74,7 +74,7 @@ runs:
         mv target/tree.json ${{ inputs.report-dir }}/deptree.json
 
     - name: Run Trivy vulnerability scanner
-      uses: aquasecurity/trivy-action@v0.30.0
+      uses: aquasecurity/trivy-action@0.30.0
       id: trivy
       with:
         image-ref: ${{ env.IMAGE }}
@@ -217,10 +217,8 @@ runs:
           echo "issue-number=${{ steps.check_report.outputs.issue-number }}" >> $GITHUB_OUTPUT
         else
           ISSUE_NUMBER=$(gh issue create \
-            --title "$TITLE" \
-            --body "$BODY" \
-            --label "$LABELS" \
-            --json number \
+            --title "$TITLE" \Error: Unable to resolve action `aquasecurity/trivy-action@v0.30.0`, unable to find version `v0.30.0`
+
             --jq .number)
           echo "issue-number=$ISSUE_NUMBER" >> $GITHUB_OUTPUT
         fi
