@@ -18,8 +18,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Setup mock environment
-      - name: Create mock files
+      # Create all mock files first
+      - name: Create mock build files
         run: |
           # Create mock sbt files
           mkdir -p project
@@ -37,7 +37,8 @@ jobs:
             )
           EOF
 
-          # Create mock reports directory and files
+      - name: Create mock test files
+        run: |
           mkdir -p security-reports
           # Create mock vulnerability report with different severities
           cat > security-reports/vulnerabilities.json << 'EOF'
@@ -91,10 +92,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Setup mock environment with no vulnerabilities
-      - name: Create mock files without vulnerabilities
+      # Create all mock files first
+      - name: Create mock build files
         run: |
-          # Create mock sbt files
           mkdir -p project
           echo 'sbt.version=1.9.6' > project/build.properties
           cat > build.sbt << 'EOF'
@@ -110,6 +110,8 @@ jobs:
             )
           EOF
 
+      - name: Create mock test files
+        run: |
           mkdir -p security-reports
           echo '{"Results": []}' > security-reports/vulnerabilities.json
           echo '{"dependencies": []}' > security-reports/deptree.json
@@ -135,10 +137,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Create mock files
-      - name: Create mock files
+      # Create all mock files first
+      - name: Create mock build files
         run: |
-          # Create mock sbt files
           mkdir -p project
           echo 'sbt.version=1.9.6' > project/build.properties
           cat > build.sbt << 'EOF'
@@ -154,6 +155,8 @@ jobs:
             )
           EOF
 
+      - name: Create mock test files
+        run: |
           mkdir -p security-reports
           cat > security-reports/vulnerabilities.json << 'EOF'
           {
@@ -172,6 +175,16 @@ jobs:
           }
           EOF
           echo '{"dependencies": []}' > security-reports/deptree.json
+
+      # Create an existing issue first
+      - name: Create existing issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue create \
+            --title "Existing Security Report" \
+            --body "Test issue" \
+            --label "security,version:1.0.0"
 
       # Test with existing issue
       - name: Test Security Scanner with existing issue
@@ -186,10 +199,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Setup mock environment
-      - name: Create mock files
+      # Create all mock files first
+      - name: Create mock build files
         run: |
-          # Create mock sbt files
           mkdir -p project
           echo 'sbt.version=1.9.6' > project/build.properties
           cat > build.sbt << 'EOF'
@@ -205,6 +217,8 @@ jobs:
             )
           EOF
 
+      - name: Create mock test files
+        run: |
           mkdir -p security-reports
           cat > security-reports/vulnerabilities.json << 'EOF'
           {
@@ -223,6 +237,19 @@ jobs:
           }
           EOF
           echo '{"dependencies": []}' > security-reports/deptree.json
+
+      # Create and close an issue
+      - name: Create and close issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ISSUE_NUM=$(gh issue create \
+            --title "Closed Security Report" \
+            --body "Test issue" \
+            --label "security,version:1.0.0" \
+            --json number \
+            --jq .number)
+          gh issue close $ISSUE_NUM
 
       # Test with closed issue
       - name: Test Security Scanner with closed issue
