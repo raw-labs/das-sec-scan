@@ -1,0 +1,207 @@
+name: Test Security Scanner Action
+
+on:
+  pull_request:
+    paths:
+      - 'action.yml'
+      - '.github/workflows/test.yml'
+  push:
+    branches: [ main ]
+    paths:
+      - 'action.yml'
+      - '.github/workflows/test.yml'
+  workflow_dispatch:
+
+jobs:
+  test-mock-vulnerabilities:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Setup mock environment
+      - name: Create mock files
+        run: |
+          mkdir -p security-reports
+          # Create mock vulnerability report with different severities
+          cat > security-reports/vulnerabilities.json << 'EOF'
+          {
+            "Results": [
+              {
+                "Target": "mock-image",
+                "Vulnerabilities": [
+                  {
+                    "VulnerabilityID": "CVE-2023-1234",
+                    "Severity": "CRITICAL",
+                    "PkgName": "mock-pkg"
+                  },
+                  {
+                    "VulnerabilityID": "CVE-2023-5678",
+                    "Severity": "HIGH",
+                    "PkgName": "mock-pkg2"
+                  }
+                ]
+              }
+            ]
+          }
+          EOF
+
+          # Create mock dependency tree
+          echo '{"dependencies": []}' > security-reports/deptree.json
+
+      # Test with mock vulnerabilities
+      - name: Test Security Scanner with vulnerabilities
+        uses: ./
+        id: scan-with-vulns
+        with:
+          report-dir: security-reports
+          severity: CRITICAL,HIGH
+
+      # Verify outputs
+      - name: Verify outputs
+        run: |
+          if [[ "${{ steps.scan-with-vulns.outputs.found-vulnerabilities }}" != "true" ]]; then
+            echo "Expected found-vulnerabilities to be true"
+            exit 1
+          fi
+          if [[ "${{ steps.scan-with-vulns.outputs.vulnerability-count }}" != "2" ]]; then
+            echo "Expected vulnerability-count to be 2"
+            exit 1
+          fi
+
+  test-no-vulnerabilities:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Setup mock environment with no vulnerabilities
+      - name: Create mock files without vulnerabilities
+        run: |
+          mkdir -p security-reports
+          echo '{"Results": []}' > security-reports/vulnerabilities.json
+          echo '{"dependencies": []}' > security-reports/deptree.json
+
+      # Test with no vulnerabilities
+      - name: Test Security Scanner without vulnerabilities
+        uses: ./
+        id: scan-no-vulns
+        with:
+          report-dir: security-reports
+
+      # Verify outputs
+      - name: Verify outputs
+        run: |
+          if [[ "${{ steps.scan-no-vulns.outputs.found-vulnerabilities }}" != "false" ]]; then
+            echo "Expected found-vulnerabilities to be false"
+            exit 1
+          fi
+
+  test-existing-issue:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Create an existing issue first
+      - name: Create existing issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue create \
+            --title "Existing Security Report" \
+            --body "Test issue" \
+            --label "security,version:1.0.0"
+
+      # Setup mock environment
+      - name: Create mock files
+        run: |
+          mkdir -p security-reports
+          cat > security-reports/vulnerabilities.json << 'EOF'
+          {
+            "Results": [
+              {
+                "Target": "mock-image",
+                "Vulnerabilities": [
+                  {
+                    "VulnerabilityID": "CVE-2023-1234",
+                    "Severity": "HIGH",
+                    "PkgName": "mock-pkg"
+                  }
+                ]
+              }
+            ]
+          }
+          EOF
+          echo '{"dependencies": []}' > security-reports/deptree.json
+
+      # Test with existing issue
+      - name: Test Security Scanner with existing issue
+        uses: ./
+        id: scan-existing
+        env:
+          IMAGE_TAG: "1.0.0"
+        with:
+          report-dir: security-reports
+
+  test-closed-issue:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Create and close an issue
+      - name: Create and close issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ISSUE_NUM=$(gh issue create \
+            --title "Closed Security Report" \
+            --body "Test issue" \
+            --label "security,version:1.0.0" \
+            --json number \
+            --jq .number)
+          gh issue close $ISSUE_NUM
+
+      # Setup mock environment
+      - name: Create mock files
+        run: |
+          mkdir -p security-reports
+          cat > security-reports/vulnerabilities.json << 'EOF'
+          {
+            "Results": [
+              {
+                "Target": "mock-image",
+                "Vulnerabilities": [
+                  {
+                    "VulnerabilityID": "CVE-2023-1234",
+                    "Severity": "HIGH",
+                    "PkgName": "mock-pkg"
+                  }
+                ]
+              }
+            ]
+          }
+          EOF
+          echo '{"dependencies": []}' > security-reports/deptree.json
+
+      # Test with closed issue
+      - name: Test Security Scanner with closed issue
+        uses: ./
+        id: scan-closed
+        env:
+          IMAGE_TAG: "1.0.0"
+        with:
+          report-dir: security-reports
+
+      # Verify new issue was created
+      - name: Verify new issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          OPEN_ISSUES=$(gh issue list \
+            --state open \
+            --label "security" \
+            --label "version:1.0.0" \
+            --json number \
+            --jq length)
+          if [[ "$OPEN_ISSUES" != "1" ]]; then
+            echo "Expected 1 open issue but found $OPEN_ISSUES"
+            exit 1
+          fi
