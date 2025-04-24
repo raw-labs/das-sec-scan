@@ -21,6 +21,23 @@ jobs:
       # Setup mock environment
       - name: Create mock files
         run: |
+          # Create mock sbt files
+          mkdir -p project
+          echo 'sbt.version=1.9.6' > project/build.properties
+          cat > build.sbt << 'EOF'
+          ThisBuild / version := "0.1.0-SNAPSHOT"
+          ThisBuild / scalaVersion := "2.13.12"
+
+          lazy val root = (project in file("."))
+            .settings(
+              name := "test-project",
+              libraryDependencies ++= Seq(
+                "org.scalatest" %% "scalatest" % "3.2.15" % Test
+              )
+            )
+          EOF
+
+          # Create mock reports directory and files
           mkdir -p security-reports
           # Create mock vulnerability report with different severities
           cat > security-reports/vulnerabilities.json << 'EOF'
@@ -77,6 +94,22 @@ jobs:
       # Setup mock environment with no vulnerabilities
       - name: Create mock files without vulnerabilities
         run: |
+          # Create mock sbt files
+          mkdir -p project
+          echo 'sbt.version=1.9.6' > project/build.properties
+          cat > build.sbt << 'EOF'
+          ThisBuild / version := "0.1.0-SNAPSHOT"
+          ThisBuild / scalaVersion := "2.13.12"
+
+          lazy val root = (project in file("."))
+            .settings(
+              name := "test-project",
+              libraryDependencies ++= Seq(
+                "org.scalatest" %% "scalatest" % "3.2.15" % Test
+              )
+            )
+          EOF
+
           mkdir -p security-reports
           echo '{"Results": []}' > security-reports/vulnerabilities.json
           echo '{"dependencies": []}' > security-reports/deptree.json
@@ -102,19 +135,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Create an existing issue first
-      - name: Create existing issue
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh issue create \
-            --title "Existing Security Report" \
-            --body "Test issue" \
-            --label "security,version:1.0.0"
-
-      # Setup mock environment
+      # Create mock files
       - name: Create mock files
         run: |
+          # Create mock sbt files
+          mkdir -p project
+          echo 'sbt.version=1.9.6' > project/build.properties
+          cat > build.sbt << 'EOF'
+          ThisBuild / version := "0.1.0-SNAPSHOT"
+          ThisBuild / scalaVersion := "2.13.12"
+
+          lazy val root = (project in file("."))
+            .settings(
+              name := "test-project",
+              libraryDependencies ++= Seq(
+                "org.scalatest" %% "scalatest" % "3.2.15" % Test
+              )
+            )
+          EOF
+
           mkdir -p security-reports
           cat > security-reports/vulnerabilities.json << 'EOF'
           {
@@ -147,22 +186,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Create and close an issue
-      - name: Create and close issue
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          ISSUE_NUM=$(gh issue create \
-            --title "Closed Security Report" \
-            --body "Test issue" \
-            --label "security,version:1.0.0" \
-            --json number \
-            --jq .number)
-          gh issue close $ISSUE_NUM
-
       # Setup mock environment
       - name: Create mock files
         run: |
+          # Create mock sbt files
+          mkdir -p project
+          echo 'sbt.version=1.9.6' > project/build.properties
+          cat > build.sbt << 'EOF'
+          ThisBuild / version := "0.1.0-SNAPSHOT"
+          ThisBuild / scalaVersion := "2.13.12"
+
+          lazy val root = (project in file("."))
+            .settings(
+              name := "test-project",
+              libraryDependencies ++= Seq(
+                "org.scalatest" %% "scalatest" % "3.2.15" % Test
+              )
+            )
+          EOF
+
           mkdir -p security-reports
           cat > security-reports/vulnerabilities.json << 'EOF'
           {
