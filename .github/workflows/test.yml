@@ -246,9 +246,7 @@ jobs:
           ISSUE_NUM=$(gh issue create \
             --title "Closed Security Report" \
             --body "Test issue" \
-            --label "security,version:1.0.0" \
-            --json number \
-            --jq .number)
+            --label "security,version:1.0.0")
           gh issue close $ISSUE_NUM
 
       # Test with closed issue
