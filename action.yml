@@ -231,7 +231,6 @@ runs:
           ISSUE_NUMBER=$(gh issue create \
             --title "$TITLE" \
             --body "$BODY" \
-            --label "$LABELS" \
-            --jq .number)
+            --label "$LABELS")
           echo "issue-number=$ISSUE_NUMBER" >> $GITHUB_OUTPUT
         fi
