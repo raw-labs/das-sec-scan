@@ -24,6 +24,10 @@ jobs:
   security-scan:
     runs-on: self-hosted
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Required when image-tag/image-name not provided (for auto-detecting latest release)
+
       - uses: raw-labs/das-sec-scan@main
         with:
           github-token: ${{ github.token }}  # Required: used for API access
@@ -33,9 +37,11 @@ jobs:
 
 | Input | Description | Required | Default |
 |-------|-------------|----------|---------|
-| `github-token` | GitHub token for API access | Yes | - |
+| `github-token` | GitHub token for API access | No | `${{ github.token }}` |
 | `report-dir` | Directory to store reports | No | `security-reports` |
 | `severity` | Severity levels to scan for (comma-separated) | No | `CRITICAL,HIGH` |
+| `image-tag` | Image tag to use for scanning | No | Latest release tag |
+| `image-name` | Full image name to scan | No | Auto-constructed from repo name |
 
 ## Outputs
 
@@ -72,9 +78,11 @@ The action automatically creates and manages the following labels:
 
 ## Requirements
 
-- Repository must have releases with semantic versioning
-- Docker images must follow the naming convention: `ghcr.io/<org>/<repo>/<repo>-server:<version>`
+- Repository must have releases with semantic versioning (or provide explicit `image-tag`)
+- Docker images must follow the naming convention: `ghcr.io/<org>/<repo>/<repo>-server:<version>` (unless `image-name` is provided)
 - SBT project with `dependencyBrowseTreeHTML` task available
+- Java 21 (installed automatically)
+- Git checkout with full history (`fetch-depth: 0`) required only when auto-detecting latest release (when neither `image-tag` nor `image-name` provided)
 
 ## License
 
