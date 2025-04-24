@@ -17,6 +17,12 @@ inputs:
     description: 'Severity levels to scan for (comma-separated)'
     required: false
     default: 'CRITICAL,HIGH'
+  image-tag:
+    description: 'Image tag to use for scanning. If not provided, will try to get latest release tag.'
+    required: false
+  image-name:
+    description: 'Full image name to scan. If not provided, will be constructed from repository name and image tag.'
+    required: false
 
 outputs:
   found-vulnerabilities:
@@ -41,12 +47,25 @@ runs:
       env:
         GH_TOKEN: ${{ inputs.github-token }}
       run: |
-        LATEST_RELEASE_TAG=$(gh api repos/${{ github.repository }}/releases/latest --jq .tag_name)
-        IMAGE_TAG=$(echo "$LATEST_RELEASE_TAG" | sed 's/^v//')
+        if [ -n "${{ inputs.image-tag }}" ]; then
+          # Use provided image tag
+          IMAGE_TAG="${{ inputs.image-tag }}"
+        else
+          # Try to get latest release tag, exit with helpful message if none found
+          if ! LATEST_RELEASE_TAG=$(gh api repos/${{ github.repository }}/releases/latest --jq .tag_name 2>/dev/null); then
+            echo "::error::No image tag provided and no releases found in repository. Please either create a release or provide an image-tag input."
+            exit 1
+          fi
+          IMAGE_TAG=$(echo "$LATEST_RELEASE_TAG" | sed 's/^v//')
+        fi
         echo "IMAGE_TAG=${IMAGE_TAG}" >> $GITHUB_ENV
 
-        SERVICE_NAME=$(echo "${{ github.repository }}" | cut -d'/' -f2)
-        IMAGE="ghcr.io/${{ github.repository }}/${SERVICE_NAME}-server:${IMAGE_TAG}"
+        if [ -n "${{ inputs.image-name }}" ]; then
+          IMAGE="${{ inputs.image-name }}"
+        else
+          SERVICE_NAME=$(echo "${{ github.repository }}" | cut -d'/' -f2)
+          IMAGE="ghcr.io/${{ github.repository }}/${SERVICE_NAME}-server:${IMAGE_TAG}"
+        fi
         echo "IMAGE=${IMAGE}" >> $GITHUB_ENV
 
     - name: Get sbt version

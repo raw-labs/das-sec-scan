@@ -18,21 +18,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Mock GitHub API
-      - name: Mock GitHub API
-        run: |
-          # Create a mock gh function that overrides the real gh command
-          function gh() {
-            if [[ "$1" == "api" && "$2" == "repos/${{ github.repository }}/releases/latest" ]]; then
-              echo '{"tag_name": "v1.0.0"}'
-              return 0
-            fi
-            # Pass through to real gh command for other cases
-            command gh "$@"
-          }
-          # Export the function so it's available to child processes
-          export -f gh
-
       # Setup mock environment
       - name: Create mock files
         run: |
@@ -70,6 +55,7 @@ jobs:
         with:
           report-dir: security-reports
           severity: CRITICAL,HIGH
+          image-tag: "1.0.0"
 
       # Verify outputs
       - name: Verify outputs
@@ -88,18 +74,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Mock GitHub API
-      - name: Mock GitHub API
-        run: |
-          function gh() {
-            if [[ "$1" == "api" && "$2" == "repos/${{ github.repository }}/releases/latest" ]]; then
-              echo '{"tag_name": "v1.0.0"}'
-              return 0
-            fi
-            command gh "$@"
-          }
-          export -f gh
-
       # Setup mock environment with no vulnerabilities
       - name: Create mock files without vulnerabilities
         run: |
@@ -113,6 +87,7 @@ jobs:
         id: scan-no-vulns
         with:
           report-dir: security-reports
+          image-tag: "1.0.0"
 
       # Verify outputs
       - name: Verify outputs
@@ -126,18 +101,6 @@ jobs:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
-
-      # Mock GitHub API
-      - name: Mock GitHub API
-        run: |
-          function gh() {
-            if [[ "$1" == "api" && "$2" == "repos/${{ github.repository }}/releases/latest" ]]; then
-              echo '{"tag_name": "v1.0.0"}'
-              return 0
-            fi
-            command gh "$@"
-          }
-          export -f gh
 
       # Create an existing issue first
       - name: Create existing issue
@@ -175,27 +138,14 @@ jobs:
       - name: Test Security Scanner with existing issue
         uses: ./
         id: scan-existing
-        env:
-          IMAGE_TAG: "1.0.0"
         with:
           report-dir: security-reports
+          image-tag: "1.0.0"
 
   test-closed-issue:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
-
-      # Mock GitHub API
-      - name: Mock GitHub API
-        run: |
-          function gh() {
-            if [[ "$1" == "api" && "$2" == "repos/${{ github.repository }}/releases/latest" ]]; then
-              echo '{"tag_name": "v1.0.0"}'
-              return 0
-            fi
-            command gh "$@"
-          }
-          export -f gh
 
       # Create and close an issue
       - name: Create and close issue
@@ -236,10 +186,9 @@ jobs:
       - name: Test Security Scanner with closed issue
         uses: ./
         id: scan-closed
-        env:
-          IMAGE_TAG: "1.0.0"
         with:
           report-dir: security-reports
+          image-tag: "1.0.0"
 
       # Verify new issue was created
       - name: Verify new issue
