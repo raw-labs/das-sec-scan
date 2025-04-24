@@ -149,8 +149,8 @@ runs:
           local color=$2
           local description=$3
 
-          # Check if label exists
-          if ! gh label list | grep -q "^$name "; then
+          # Check if label exists using JSON output for exact name matching
+          if ! gh label list --json name --jq '.[] | .name' | grep -Fxq "$name"; then
             gh label create "$name" \
               --color "$color" \
               --description "$description"
