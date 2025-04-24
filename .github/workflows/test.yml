@@ -18,6 +18,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Mock GitHub API
+      - name: Mock GitHub API
+        run: |
+          # Create a mock gh function that overrides the real gh command
+          function gh() {
+            if [[ "$1" == "api" && "$2" == "repos/${{ github.repository }}/releases/latest" ]]; then
+              echo '{"tag_name": "v1.0.0"}'
+              return 0
+            fi
+            # Pass through to real gh command for other cases
+            command gh "$@"
+          }
+          # Export the function so it's available to child processes
+          export -f gh
+
       # Setup mock environment
       - name: Create mock files
         run: |
@@ -73,6 +88,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Mock GitHub API
+      - name: Mock GitHub API
+        run: |
+          function gh() {
+            if [[ "$1" == "api" && "$2" == "repos/${{ github.repository }}/releases/latest" ]]; then
+              echo '{"tag_name": "v1.0.0"}'
+              return 0
+            fi
+            command gh "$@"
+          }
+          export -f gh
+
       # Setup mock environment with no vulnerabilities
       - name: Create mock files without vulnerabilities
         run: |
@@ -99,6 +126,18 @@ jobs:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
+
+      # Mock GitHub API
+      - name: Mock GitHub API
+        run: |
+          function gh() {
+            if [[ "$1" == "api" && "$2" == "repos/${{ github.repository }}/releases/latest" ]]; then
+              echo '{"tag_name": "v1.0.0"}'
+              return 0
+            fi
+            command gh "$@"
+          }
+          export -f gh
 
       # Create an existing issue first
       - name: Create existing issue
@@ -145,6 +184,18 @@ jobs:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
+
+      # Mock GitHub API
+      - name: Mock GitHub API
+        run: |
+          function gh() {
+            if [[ "$1" == "api" && "$2" == "repos/${{ github.repository }}/releases/latest" ]]; then
+              echo '{"tag_name": "v1.0.0"}'
+              return 0
+            fi
+            command gh "$@"
+          }
+          export -f gh
 
       # Create and close an issue
       - name: Create and close issue
