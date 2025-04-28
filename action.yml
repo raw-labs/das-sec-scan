@@ -84,6 +84,8 @@ runs:
 
     - name: Generate Dependency Tree
       shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
       run: |
         mkdir -p ${{ inputs.report-dir }}
         sbt dependencyBrowseTreeHTML
