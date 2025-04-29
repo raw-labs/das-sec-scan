@@ -141,9 +141,9 @@ runs:
       shell: bash
       run: |
         ${{ github.action_path }}/scripts/sec-scan-report \
-          ${{ inputs.report-dir }}/vulnerabilities.json \
-          ${{ inputs.report-dir }}/deptree.json \
-          ${{ inputs.report-dir }}/vulnerabilities.md
+          -t ${{ inputs.report-dir }}/vulnerabilities.json \
+          -o ${{ inputs.report-dir }}/vulnerabilities.md \
+          -d ${{ inputs.report-dir }}/deptree.json
 
         # Add issue link to summary if issue exists or was created
         if [ -n "${{ steps.check_report.outputs.issue-number }}" ]; then
