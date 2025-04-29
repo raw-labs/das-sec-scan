@@ -90,6 +90,11 @@ runs:
         SBT_VERSION=$(grep 'sbt.version=' project/build.properties | cut -d'=' -f2)
         echo "sbt_version=${SBT_VERSION}" >> $GITHUB_OUTPUT
 
+    - name: Create report directory
+      shell: bash
+      run: |
+        mkdir -p ${{ inputs.report-dir }}
+
     - name: Setup sbt (for SBT projects)
       if: steps.detect-project.outputs.project_type == 'sbt'
       uses: sbt/setup-sbt@v1
@@ -102,7 +107,6 @@ runs:
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
       run: |
-        mkdir -p ${{ inputs.report-dir }}
         sbt dependencyBrowseTreeHTML
         mv target/tree.json ${{ inputs.report-dir }}/deptree.json
 
