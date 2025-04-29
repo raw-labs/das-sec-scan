@@ -63,26 +63,41 @@ runs:
         fi
         echo "IMAGE=${IMAGE}" >> $GITHUB_ENV
 
-    - name: Get sbt version
-      id: get-sbt-version
+    - name: Detect project type
+      id: detect-project
       shell: bash
       run: |
-        SBT_VERSION=$(grep 'sbt.version=' project/build.properties | cut -d'=' -f2)
-        echo "sbt_version=${SBT_VERSION}" >> $GITHUB_OUTPUT
+        if [ -f "build.sbt" ]; then
+          echo "project_type=sbt" >> $GITHUB_OUTPUT
+        elif [ -f "pom.xml" ]; then
+          echo "project_type=maven" >> $GITHUB_OUTPUT
+        else
+          echo "project_type=unknown" >> $GITHUB_OUTPUT
+        fi
 
     - name: Setup Java
       uses: actions/setup-java@v4
       with:
         distribution: temurin
         java-version: 21
-        cache: 'sbt'
+        cache: ${{ steps.detect-project.outputs.project_type }}
 
-    - name: Setup sbt
+    - name: Get sbt version (for SBT projects)
+      if: steps.detect-project.outputs.project_type == 'sbt'
+      id: get-sbt-version
+      shell: bash
+      run: |
+        SBT_VERSION=$(grep 'sbt.version=' project/build.properties | cut -d'=' -f2)
+        echo "sbt_version=${SBT_VERSION}" >> $GITHUB_OUTPUT
+
+    - name: Setup sbt (for SBT projects)
+      if: steps.detect-project.outputs.project_type == 'sbt'
       uses: sbt/setup-sbt@v1
       with:
         sbt-runner-version: ${{ steps.get-sbt-version.outputs.sbt_version }}
 
-    - name: Generate Dependency Tree
+    - name: Generate Dependency Tree (SBT projects)
+      if: steps.detect-project.outputs.project_type == 'sbt'
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
@@ -140,10 +155,15 @@ runs:
       if: steps.check_vulns.outputs.found-vulnerabilities == 'true'
       shell: bash
       run: |
+        DEPTREE_ARG=""
+        if [ "${{ steps.detect-project.outputs.project_type }}" = "sbt" ] && [ -f "${{ inputs.report-dir }}/deptree.json" ]; then
+          DEPTREE_ARG="-d ${{ inputs.report-dir }}/deptree.json"
+        fi
+
         ${{ github.action_path }}/scripts/sec-scan-report \
           -t ${{ inputs.report-dir }}/vulnerabilities.json \
           -o ${{ inputs.report-dir }}/vulnerabilities.md \
-          -d ${{ inputs.report-dir }}/deptree.json
+          $DEPTREE_ARG
 
         # Add issue link to summary if issue exists or was created
         if [ -n "${{ steps.check_report.outputs.issue-number }}" ]; then
