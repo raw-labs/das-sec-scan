@@ -116,8 +116,10 @@ runs:
         GITHUB_TOKEN: ${{ inputs.github-token }}
       run: |
         cd ${{ inputs.project-path }}
-        sbt dependencyBrowseTreeHTML
-        mv target/tree.json ${{ github.workspace }}/${{ inputs.report-dir }}/deptree.json
+        # Generate dependency tree for all subprojects
+        sbt "all dependencyBrowseTreeHTML"
+        # Combine all tree.json files into one
+        find . -name "tree.json" -type f -exec jq -s 'add' {} + > ${{ github.workspace }}/${{ inputs.report-dir }}/deptree.json
         cd ${{ github.workspace }}
 
     - name: Run Trivy vulnerability scanner
