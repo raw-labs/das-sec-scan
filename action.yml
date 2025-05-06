@@ -85,7 +85,10 @@ runs:
         distribution: temurin
         java-version: 21
         cache: ${{ steps.detect-project.outputs.project_type }}
-        cache-dependency-path: ${{ inputs.project-path }}/**/*.sbt,${{ inputs.project-path }}/**/pom.xml
+        cache-dependency-path: |
+          ${{ inputs.project-path }}/build.sbt
+          ${{ inputs.project-path }}/project/build.properties
+          ${{ inputs.project-path }}/pom.xml
 
     - name: Get sbt version (for SBT projects)
       if: steps.detect-project.outputs.project_type == 'sbt'
