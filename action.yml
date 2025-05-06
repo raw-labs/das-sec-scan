@@ -194,14 +194,16 @@ runs:
       env:
         GH_TOKEN: ${{ inputs.github-token }}
       run: |
+        # Get all existing labels once
+        EXISTING_LABELS=$(gh label list --json name --jq '.[].name')
+
         # Function to create label if it doesn't exist
         create_label() {
           local name=$1
           local color=$2
           local description=$3
 
-          # Check if label exists using JSON output for exact name matching
-          if ! gh label list --json name --jq '.[] | .name' | grep -Fxq "$name"; then
+          if ! echo "$EXISTING_LABELS" | grep -Fxq "$name"; then
             gh label create "$name" \
               --color "$color" \
               --description "$description"
