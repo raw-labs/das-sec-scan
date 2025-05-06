@@ -233,10 +233,16 @@ runs:
         GH_TOKEN: ${{ inputs.github-token }}
       run: |
         CURRENT_DATE=$(date '+%Y-%m-%d')
-        TITLE="Security Scan Report for version ${{ env.IMAGE_TAG }} ($CURRENT_DATE)"
+        PROJECT_NAME=$(basename "${{ inputs.project-path }}")
+        if [ "${{ inputs.project-path }}" != "." ]; then
+          TITLE="Security Scan Report for $PROJECT_NAME version ${{ env.IMAGE_TAG }} ($CURRENT_DATE)"
+        else
+          TITLE="Security Scan Report for version ${{ env.IMAGE_TAG }} ($CURRENT_DATE)"
+        fi
 
         BODY="## Security Scan Report
 
+        **Project:** \`$PROJECT_NAME\`
         **Version:** \`${{ env.IMAGE_TAG }}\`
         **Scan Date:** \`$CURRENT_DATE\`
         **Image:** \`${{ env.IMAGE }}\`
