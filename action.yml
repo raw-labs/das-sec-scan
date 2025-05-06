@@ -23,6 +23,10 @@ inputs:
   image-name:
     description: 'Full image name to scan. If not provided, will be constructed from repository name and image tag.'
     required: false
+  project-path:
+    description: 'Path to the project directory in a monorepo. Defaults to root directory.'
+    required: false
+    default: '.'
 
 outputs:
   found-vulnerabilities:
@@ -67,9 +71,9 @@ runs:
       id: detect-project
       shell: bash
       run: |
-        if [ -f "build.sbt" ]; then
+        if [ -f "${{ inputs.project-path }}/build.sbt" ]; then
           echo "project_type=sbt" >> $GITHUB_OUTPUT
-        elif [ -f "pom.xml" ]; then
+        elif [ -f "${{ inputs.project-path }}/pom.xml" ]; then
           echo "project_type=maven" >> $GITHUB_OUTPUT
         else
           echo "project_type=unknown" >> $GITHUB_OUTPUT
@@ -81,13 +85,14 @@ runs:
         distribution: temurin
         java-version: 21
         cache: ${{ steps.detect-project.outputs.project_type }}
+        cache-dependency-path: ${{ inputs.project-path }}/**/*.sbt,${{ inputs.project-path }}/**/pom.xml
 
     - name: Get sbt version (for SBT projects)
       if: steps.detect-project.outputs.project_type == 'sbt'
       id: get-sbt-version
       shell: bash
       run: |
-        SBT_VERSION=$(grep 'sbt.version=' project/build.properties | cut -d'=' -f2)
+        SBT_VERSION=$(grep 'sbt.version=' ${{ inputs.project-path }}/project/build.properties | cut -d'=' -f2)
         echo "sbt_version=${SBT_VERSION}" >> $GITHUB_OUTPUT
 
     - name: Create report directory
@@ -107,8 +112,10 @@ runs:
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
       run: |
+        cd ${{ inputs.project-path }}
         sbt dependencyBrowseTreeHTML
-        mv target/tree.json ${{ inputs.report-dir }}/deptree.json
+        mv target/tree.json ${{ github.workspace }}/${{ inputs.report-dir }}/deptree.json
+        cd ${{ github.workspace }}
 
     - name: Run Trivy vulnerability scanner
       uses: aquasecurity/trivy-action@0.30.0
