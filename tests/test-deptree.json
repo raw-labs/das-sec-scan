@@ -1,0 +1,49 @@
+[
+  {
+    "text": "com.raw-labs:core:1.0.0",
+    "children": [
+      {
+        "text": "org.apache.spark:spark-core_2.12:3.3.0",
+        "children": [
+          {
+            "text": "com.fasterxml.jackson.core:jackson-databind:2.13.3"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "text": "com.raw-labs:api:1.0.0",
+    "children": [
+      {
+        "text": "com.fasterxml.jackson.core:jackson-databind:2.13.3"
+      },
+      {
+        "text": "org.springframework:spring-web:5.3.20"
+      }
+    ]
+  },
+  {
+    "text": "com.raw-labs:common:1.0.0",
+    "children": [
+      {
+        "text": "com.fasterxml.jackson.core:jackson-databind:2.13.3"
+      },
+      {
+        "text": "org.apache.commons:commons-text:1.9"
+      }
+    ]
+  },
+  {
+    "text": "org.apache.hadoop:hadoop-client:3.3.1",
+    "children": [
+      {
+        "text": "org.apache.logging.log4j:log4j-core:2.14.1"
+      }
+    ]
+  },
+  {
+    "text": "org.postgresql:postgresql:42.2.25",
+    "children": []
+  }
+]

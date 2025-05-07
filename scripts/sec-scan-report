@@ -65,87 +65,22 @@ if [ -n "$DEPS_FILE" ] && [ ! -f "$DEPS_FILE" ]; then
     exit 1
 fi
 
-# Function to find dependency path in JSON tree
-find_dependency_path() {
+# Function to check if a package is a dependency of a subproject
+is_dependency_of() {
     local pkg_name=$1
-    local raw_paths
+    local subproject_json=$2
 
-    # If dependency tree file doesn't exist or is empty, return EXTERNAL
-    if [ -z "$DEPS_FILE" ] || [ ! -s "$DEPS_FILE" ]; then
-        echo '{"type": "EXTERNAL", "paths": []}'
-        return
-    fi
-
-    # First try exact match
-    raw_paths=$(jq -r --arg pkg "$pkg_name" '
-        def find_paths($pkg; $current_path):
-            if (.text | type) == "string" and (.text | contains($pkg)) then
-                if $current_path == "" then $current_path + .text
-                else $current_path + " -> " + .text
-                end
-            elif (.children | type) == "array" then
-                (.children[] | find_paths($pkg; if $current_path == "" then .text else $current_path + " -> " + .text end))
+    echo "$subproject_json" | jq -r --arg pkg "$pkg_name" '
+        def has_dependency($pkg; $node):
+            if ($node.text | contains($pkg)) then
+                true
+            elif ($node.children | type) == "array" then
+                $node.children | map(has_dependency($pkg; .)) | any
             else
-                empty
+                false
             end;
-        [.[] | find_paths($pkg; "")] | unique | select(length > 0)
-    ' "$DEPS_FILE")
-
-    # If no exact match, try fuzzy match
-    if [ -z "$raw_paths" ] || [ "$raw_paths" = "[]" ]; then
-        raw_paths=$(jq -r --arg pkg "${pkg_name%:*}" '
-            def find_paths($pkg; $current_path):
-                if (.text | type) == "string" and (.text | contains($pkg)) then
-                    if $current_path == "" then $current_path + .text
-                    else $current_path + " -> " + .text
-                    end
-                elif (.children | type) == "array" then
-                    (.children[] | find_paths($pkg; if $current_path == "" then .text else $current_path + " -> " + .text end))
-                else
-                    empty
-                end;
-            [.[] | find_paths($pkg; "")] | unique | select(length > 0)
-        ' "$DEPS_FILE")
-    fi
-
-    # Return dependency type and paths, filtering out evicted dependencies
-    if [ -z "$raw_paths" ]; then
-        echo '{"type": "EXTERNAL", "paths": []}'
-    else
-        echo "$raw_paths" | jq -r '
-            def clean_paths:
-                map(select(contains("(evicted by") | not)) |
-                map(select(contains("evicted by") | not)) |
-                unique;
-
-            def group_by_subproject:
-                map(select(contains("com.raw-labs:"))) |
-                map(capture("com.raw-labs:(?<subproject>[^:]+)")) |
-                map(.subproject) |
-                unique |
-                map({subproject: ., paths: []}) |
-                . as $groups |
-                map(select(contains("com.raw-labs:"))) |
-                map(capture("com.raw-labs:(?<subproject>[^:]+)") as $sub |
-                    $groups[] |
-                    select(.subproject == $sub.subproject) |
-                    .paths += [.]) |
-                unique;
-
-            if (map(select(contains("com.raw-labs"))) | length > 0) then
-                {
-                    "type": "RAWLABS",
-                    "paths": clean_paths,
-                    "subprojects": group_by_subproject
-                }
-            else
-                {
-                    "type": "EXTERNAL",
-                    "paths": clean_paths
-                }
-            end
-        '
-    fi
+        has_dependency($pkg; .)
+    '
 }
 
 # Generate markdown report
@@ -172,43 +107,51 @@ find_dependency_path() {
 
     # Only show Raw Labs section if dependency tree is provided
     if [ -n "$DEPS_FILE" ] && [ -s "$DEPS_FILE" ]; then
-        has_rawlabs=false
+        echo "### From Raw Labs"
+        echo
+
+        # Get all Raw Labs subprojects
+        readarray -t subprojects < <(jq -r '.[].text | capture("com\\.raw-labs:(?<name>[^:]+)").name' "$DEPS_FILE")
+
+        # For each subproject
+        for subproject in "${subprojects[@]}"; do
+            echo "#### In project: $subproject"
+            echo
+
+            # Get the subproject's JSON
+            subproject_json=$(jq -r --arg sub "$subproject" '.[] | select(.text | contains("com.raw-labs:" + $sub + ":"))' "$DEPS_FILE")
+
+            # Check each library vulnerability
+            while IFS= read -r vuln; do
+                pkg_name=$(echo "$vuln" | jq -r '.PkgName')
+                if [ "$(is_dependency_of "$pkg_name" "$subproject_json")" = "true" ]; then
+                    echo "$vuln" | jq -r '"⚠️ \(.PkgName) (\(.Severity)) → Fixed in: \(.FixedVersion)"'
+                fi
+            done < <(jq -c '.Results[] | select(.Class == "lang-pkgs") | select(.Vulnerabilities) | .Vulnerabilities[]' "$TRIVY_FILE")
+            echo
+        done
+
+        echo "### From Third-party"
+        echo
+        # Print all library vulnerabilities that weren't shown in Raw Labs section
         while IFS= read -r vuln; do
             pkg_name=$(echo "$vuln" | jq -r '.PkgName')
-            dep_info=$(find_dependency_path "$pkg_name")
-            if echo "$dep_info" | jq -e '.type == "RAWLABS"' > /dev/null; then
-                if [ "$has_rawlabs" = false ]; then
-                    echo "### From Raw Labs"
-                    echo
-                    has_rawlabs=true
+            any_raw_labs=false
+            for subproject in "${subprojects[@]}"; do
+                subproject_json=$(jq -r --arg sub "$subproject" '.[] | select(.text | contains("com.raw-labs:" + $sub + ":"))' "$DEPS_FILE")
+                if [ "$(is_dependency_of "$pkg_name" "$subproject_json")" = "true" ]; then
+                    any_raw_labs=true
+                    break
                 fi
-
-                # Print vulnerability info
+            done
+            if [ "$any_raw_labs" = "false" ]; then
                 echo "$vuln" | jq -r '"⚠️ \(.PkgName) (\(.Severity)) → Fixed in: \(.FixedVersion)"'
-
-                # Print subproject-specific paths
-                echo "$dep_info" | jq -r '.subprojects[] |
-                    "#### \(.subproject)" + "\n" +
-                    (.paths | map("  • " + .) | join("\n")) + "\n"'
             fi
         done < <(jq -c '.Results[] | select(.Class == "lang-pkgs") | select(.Vulnerabilities) | .Vulnerabilities[]' "$TRIVY_FILE")
-
-        if [ "$has_rawlabs" = true ]; then
-            echo "### From Third-party"
-            echo
-        fi
-    fi
-
-    # Print external dependencies
-    has_external=false
-    while IFS= read -r vuln; do
-        pkg_name=$(echo "$vuln" | jq -r '.PkgName')
-        dep_info=$(find_dependency_path "$pkg_name")
-        if echo "$dep_info" | jq -e '.type == "EXTERNAL"' > /dev/null; then
-            if [ "$has_external" = false ] && [ -n "$DEPS_FILE" ] && [ -s "$DEPS_FILE" ]; then
-                has_external=true
-            fi
+    else
+        # If no dependency tree, just print all vulnerabilities
+        while IFS= read -r vuln; do
             echo "$vuln" | jq -r '"⚠️ \(.PkgName) (\(.Severity)) → Fixed in: \(.FixedVersion)"'
-        fi
-    done < <(jq -c '.Results[] | select(.Class == "lang-pkgs") | select(.Vulnerabilities) | .Vulnerabilities[]' "$TRIVY_FILE")
+        done < <(jq -c '.Results[] | select(.Class == "lang-pkgs") | select(.Vulnerabilities) | .Vulnerabilities[]' "$TRIVY_FILE")
+    fi
 } > "$REPORT_FILE"
