@@ -97,31 +97,51 @@ find_dependency_path() {
             def find_paths($pkg; $current_path):
                 if (.text | type) == "string" and (.text | contains($pkg)) then
                     if $current_path == "" then $current_path + .text
-                else $current_path + " -> " + .text
-                end
-            elif (.children | type) == "array" then
-                (.children[] | find_paths($pkg; if $current_path == "" then .text else $current_path + " -> " + .text end))
-            else
-                empty
-            end;
-        [.[] | find_paths($pkg; "")] | unique | select(length > 0)
-    ' "$DEPS_FILE")
+                    else $current_path + " -> " + .text
+                    end
+                elif (.children | type) == "array" then
+                    (.children[] | find_paths($pkg; if $current_path == "" then .text else $current_path + " -> " + .text end))
+                else
+                    empty
+                end;
+            [.[] | find_paths($pkg; "")] | unique | select(length > 0)
+        ' "$DEPS_FILE")
     fi
 
-    # Return dependency type and paths
+    # Return dependency type and paths, filtering out evicted dependencies
     if [ -z "$raw_paths" ]; then
         echo '{"type": "EXTERNAL", "paths": []}'
     else
         echo "$raw_paths" | jq -r '
+            def clean_paths:
+                map(select(contains("(evicted by") | not)) |
+                map(select(contains("evicted by") | not)) |
+                unique;
+
+            def group_by_subproject:
+                map(select(contains("com.raw-labs:"))) |
+                map(capture("com.raw-labs:(?<subproject>[^:]+)")) |
+                map(.subproject) |
+                unique |
+                map({subproject: ., paths: []}) |
+                . as $groups |
+                map(select(contains("com.raw-labs:"))) |
+                map(capture("com.raw-labs:(?<subproject>[^:]+)") as $sub |
+                    $groups[] |
+                    select(.subproject == $sub.subproject) |
+                    .paths += [.]) |
+                unique;
+
             if (map(select(contains("com.raw-labs"))) | length > 0) then
                 {
                     "type": "RAWLABS",
-                    "paths": map(select(contains("com.raw-labs")))
+                    "paths": clean_paths,
+                    "subprojects": group_by_subproject
                 }
             else
                 {
                     "type": "EXTERNAL",
-                    "paths": .
+                    "paths": clean_paths
                 }
             end
         '
@@ -162,10 +182,14 @@ find_dependency_path() {
                     echo
                     has_rawlabs=true
                 fi
-                paths=$(echo "$dep_info" | jq -r '.paths | map("  • " + .) | join("\n")')
+
+                # Print vulnerability info
                 echo "$vuln" | jq -r '"⚠️ \(.PkgName) (\(.Severity)) → Fixed in: \(.FixedVersion)"'
-                echo "$paths"
-                echo
+
+                # Print subproject-specific paths
+                echo "$dep_info" | jq -r '.subprojects[] |
+                    "#### \(.subproject)" + "\n" +
+                    (.paths | map("  • " + .) | join("\n")) + "\n"'
             fi
         done < <(jq -c '.Results[] | select(.Class == "lang-pkgs") | select(.Vulnerabilities) | .Vulnerabilities[]' "$TRIVY_FILE")
 
