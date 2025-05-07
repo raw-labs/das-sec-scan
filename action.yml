@@ -80,6 +80,7 @@ runs:
         fi
 
     - name: Setup Java
+      if: steps.detect-project.outputs.project_type == 'sbt'
       uses: actions/setup-java@v4
       with:
         distribution: temurin
